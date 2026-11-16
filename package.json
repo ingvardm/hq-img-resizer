@@ -1,0 +1,22 @@
+{
+  "name": "hq-img-resizer",
+  "version": "0.1.0",
+  "description": "CLI to generate multiple resolution variants of an image from the original source",
+  "license": "MIT",
+  "bin": {
+    "hqimgresize": "bin/hqimgresize.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  }
+}
