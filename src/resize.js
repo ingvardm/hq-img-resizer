@@ -2,8 +2,26 @@ const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
 
+const FORMAT_TO_EXT = {
+  jpeg: ".jpg",
+  jpg: ".jpg",
+  png: ".png",
+  webp: ".webp",
+  gif: ".gif",
+  avif: ".avif",
+  tiff: ".tiff",
+  tif: ".tiff",
+  heif: ".heif",
+  heic: ".heic",
+};
+
 function formatScale(scale) {
-  return Number.isInteger(scale) ? String(scale) : String(scale);
+  return String(scale);
+}
+
+function extFromFormat(format) {
+  if (!format) return null;
+  return FORMAT_TO_EXT[format] || `.${format}`;
 }
 
 function outputFileName(stem, ext, scale) {
@@ -20,16 +38,31 @@ async function resizeAll({ inputPath, outputDir, stem, ext, baseWidth, scales })
   try {
     metadata = await sharp(originalBuffer).metadata();
   } catch (err) {
-    throw new Error(`unsupported or unreadable image: ${inputPath}`);
+    throw new Error(
+      `unsupported or unreadable image "${inputPath}": ${err && err.message ? err.message : String(err)}`
+    );
   }
 
   const srcWidth = metadata.width;
   const srcHeight = metadata.height;
   if (!srcWidth || !srcHeight) {
-    throw new Error("could not determine source image dimensions");
+    throw new Error(`could not determine source image dimensions for "${inputPath}"`);
   }
 
-  fs.mkdirSync(outputDir, { recursive: true });
+  const outputExt = ext || extFromFormat(metadata.format);
+  if (!outputExt) {
+    throw new Error(
+      `cannot determine output file extension for "${inputPath}" (format: ${metadata.format || "unknown"}); provide an input file with an extension`
+    );
+  }
+
+  try {
+    fs.mkdirSync(outputDir, { recursive: true });
+  } catch (err) {
+    throw new Error(
+      `cannot create output directory "${outputDir}": ${err && err.message ? err.message : String(err)}`
+    );
+  }
 
   const tasks = scales.map(async (scale) => {
     const targetWidth = Math.round(baseWidth * scale);
@@ -41,7 +74,7 @@ async function resizeAll({ inputPath, outputDir, stem, ext, baseWidth, scales })
       );
     }
 
-    const fileName = outputFileName(stem, ext, scale);
+    const fileName = outputFileName(stem, outputExt, scale);
     const outPath = path.join(outputDir, fileName);
 
     await sharp(originalBuffer)
@@ -51,8 +84,7 @@ async function resizeAll({ inputPath, outputDir, stem, ext, baseWidth, scales })
     return outPath;
   });
 
-  const outputs = await Promise.all(tasks);
-  return outputs;
+  return Promise.all(tasks);
 }
 
 module.exports = { resizeAll };
